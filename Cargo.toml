@@ -1,0 +1,12 @@
+# Cargo.toml
+[package]
+name = "hello"
+version = "0.1.0"
+authors = ["Richard Apodaca <rich.apodaca@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+
+# new material
+[lib]
+crate-type = ["cdylib"]

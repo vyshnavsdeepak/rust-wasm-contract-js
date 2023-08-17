@@ -25,6 +25,8 @@ pub unsafe extern "C" fn greet(ptr: *mut u8) {
     let str_content = CStr::from_ptr(ptr as *const i8).to_str().unwrap();
     let mut string_content = String::from("Hello, ");
 
+    string_content.push_str(COUNTER.to_string().as_str());
+    string_content.push_str(" ");
     string_content.push_str(str_content);
     string_content.push_str("!");
 

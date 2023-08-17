@@ -29,14 +29,21 @@ const read = (buffer, pointer) => {
   return decoder.decode(new Uint8Array(buffer, pointer, length));
 };
 
+const askToGreet = async (name, { instance, memory }) => {
+  const pointer = instance.exports.alloc();
+
+  write(name, memory.buffer, pointer);
+
+  instance.exports.greet(pointer);
+  console.log("Read:", read(memory.buffer, pointer))
+};
+
 (async() => {
   const instance = await createInstance();
   const memory = instance.exports.memory;
-  const pointer = instance.exports.alloc();
 
-  write('Satoshi', memory.buffer, pointer);
-  instance.exports.greet(pointer);
+  await askToGreet('John', { instance, memory });
 
-  console.log('greeting', read(memory.buffer, pointer));
-  instance.exports.dealloc(pointer);
+  await askToGreet('Allen', { instance, memory });
+
 })();

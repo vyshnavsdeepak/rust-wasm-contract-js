@@ -4,6 +4,9 @@ use std::os::raw::c_void;
 
 static mut COUNTER: u32 = 0;
 
+static mut VOTES_RED : u32 = 0;
+static mut VOTES_BLUE : u32 = 0;
+
 #[no_mangle]
 pub extern "C" fn alloc() -> *mut c_void {
     let mut buf = Vec::with_capacity(1024);
@@ -43,3 +46,16 @@ unsafe fn get_return_string(string_content: String, ptr: *mut u8) -> () {
 
     header_bytes[..bytes.len()].copy_from_slice(bytes);
 }
+
+#[no_mangle]
+pub fn vote(ptr: *mut u8) {
+    unsafe {
+        let str_content = CStr::from_ptr(ptr as *const i8).to_str().unwrap();
+        if str_content == "red" {
+            VOTES_RED += 1;
+        } else if str_content == "blue" {
+            VOTES_BLUE += 1;
+        }
+    }
+}
+

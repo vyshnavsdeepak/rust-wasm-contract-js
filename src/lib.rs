@@ -1,11 +1,19 @@
 use std::mem;
 use std::ffi::{CString, CStr};
 use std::os::raw::c_void;
+extern crate serde;
+extern crate serde_json;
 
-static mut COUNTER: u32 = 0;
+#[macro_use] extern crate serde_derive;
 
-static mut VOTES_RED : u32 = 0;
-static mut VOTES_BLUE : u32 = 0;
+#[derive(Serialize, Deserialize, Debug)]
+struct StateShape {
+    red: u32,
+    blue: u32,
+    invalid: u32,
+}
+
+static mut STATE : StateShape = StateShape { red: 0, blue: 0, invalid: 0 };
 
 #[no_mangle]
 pub extern "C" fn alloc() -> *mut c_void {
@@ -23,20 +31,6 @@ pub unsafe extern "C" fn dealloc(ptr: *mut c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn greet(ptr: *mut u8) {
-    COUNTER += 1;
-    let str_content = CStr::from_ptr(ptr as *const i8).to_str().unwrap();
-    let mut string_content = String::from("Hello, ");
-
-    string_content.push_str(COUNTER.to_string().as_str());
-    string_content.push_str(" ");
-    string_content.push_str(str_content);
-    string_content.push_str("!");
-
-    get_return_string(string_content, ptr);
-}
-
-#[no_mangle]
 unsafe fn get_return_string(string_content: String, ptr: *mut u8) -> () {
     let c_headers = CString::new(string_content).unwrap();
 
@@ -51,34 +45,25 @@ unsafe fn get_return_string(string_content: String, ptr: *mut u8) -> () {
 pub unsafe fn vote(ptr: *mut u8) {
     let str_content = CStr::from_ptr(ptr as *const i8).to_str().unwrap();
     if str_content == "red" {
-        VOTES_RED += 1;
+        STATE.red += 1;
     } else if str_content == "blue" {
-        VOTES_BLUE += 1;
+        STATE.blue += 1;
     } else {
-        VOTES_BLUE += 10;
+        STATE.invalid += 1;
     }
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn get_state(ptr: *mut u8) {
     // export state as JSON
-    let mut string_content = String::from("{ \"red\": ");
-    string_content.push_str(VOTES_RED.to_string().as_str());
-    string_content.push_str(", \"blue\": ");
-    string_content.push_str(VOTES_BLUE.to_string().as_str());
-    string_content.push_str(" }");
-
+    let string_content = serde_json::to_string(&STATE).unwrap();
     get_return_string(string_content, ptr);
 }
 
 #[no_mangle]
 pub unsafe fn apply_state(ptr: *mut u8) {
-    let str_content = CStr::from_ptr(ptr as *const i8).to_str().unwrap();
-    let mut split = str_content.split(" ");
-    let red = split.next().unwrap().parse::<u32>().unwrap();
-    let blue = split.next().unwrap().parse::<u32>().unwrap();
-
-    VOTES_RED = red;
-    VOTES_BLUE = blue;
+    let input_string = CStr::from_ptr(ptr as *const i8).to_str().unwrap();
+    let input_state: StateShape = serde_json::from_str(input_string).unwrap();
+    STATE = input_state;
 }
 

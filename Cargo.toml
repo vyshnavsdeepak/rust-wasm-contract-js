@@ -6,6 +6,9 @@ authors = ["Richard Apodaca <rich.apodaca@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+serde = "1.0.183"
+serde_derive = "1.0.183"
+serde_json = "1.0.105"
 
 # new material
 [lib]

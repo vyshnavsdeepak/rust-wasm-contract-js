@@ -20,11 +20,6 @@ const vote_token_chain = [
 
 let pointerPosition = 0;
 
-const nextPointer = () => {
-  pointerPosition = pointerPosition + 1;
-  return pointerPosition;
-}
-
 const createInstance = async () => {
   const path = './target/wasm32-unknown-unknown/release/hello.wasm';
   const buff = fs.readFileSync(path);
@@ -39,17 +34,26 @@ const createInstance = async () => {
   return instance;
 };
 
-const write = (string, buffer, pointer) => {
+const write = (string, buffer) => {
+  // TODO: Define range, remove 1024
+  const pointer = pointerPosition;
   const view = new Uint8Array(buffer, pointer, 1024);
   const encoder = new TextEncoder();
 
   view.set(encoder.encode(string));
+  pointerPosition += string.length + 1;
+  return pointer;
 }
 
-const read = (buffer, pointer) => {
+const read = (buffer) => {
+  // TODO: Define range, remove 1024
+  const pointer = pointerPosition;
+
   const view = new Uint8Array(buffer, pointer, 1024);
   const length = view.findIndex(byte => byte === 0);
   const decoder = new TextDecoder();
+
+  pointerPosition += length + 1;
 
   return decoder.decode(new Uint8Array(buffer, pointer, length));
 };
@@ -60,7 +64,8 @@ const askToGreet = async (name, { instance, memory }) => {
   write(name, memory.buffer, pointer);
 
   instance.exports.greet(pointer);
-  console.log("Read:", read(memory.buffer, pointer))
+  const res = read(memory.buffer, pointer);
+  console.log("Read:", res);
 };
 
 const processActions = ({
@@ -73,8 +78,7 @@ const processActions = ({
 
   list.forEach((action) => {
     const pointers = action.args.map((arg, i) => {
-      const pointer = nextPointer();
-      write(arg, memory.buffer, pointer);
+      const pointer = write(arg, memory.buffer);
       return pointer;
     })
 
@@ -83,6 +87,33 @@ const processActions = ({
     functionRef(...pointers);
   })
 };
+
+const loadState = ({ instance }) => {
+  const memory = instance.exports.memory;
+
+  try {
+    const state = fs.readFileSync('./state.json', 'utf8');
+    console.log({
+      state
+    })
+    const pointer = write(state, memory.buffer);
+
+    instance.exports.apply_state(pointer);
+  } catch (e) {
+    console.log('No state found');
+  }
+}
+
+const saveState = ({ instance }) => {
+  const memory = instance.exports.memory;
+
+  instance.exports.get_state(pointerPosition);
+  // TODO: Pointer position gets updated by rust, and now we have no clue where it ends
+  const state = read(memory.buffer);
+
+  console.log("State:", state);
+  fs.writeFileSync('./state.json', state);
+}
 
 (async() => {
   const instance = await createInstance();
@@ -99,6 +130,9 @@ const processActions = ({
   // await askToGreet('Allen', { instance, memory });
 
   // Apply state to Rust/WASM
+  loadState({
+    instance
+  });
 
   // Perform actions after state is applied
   processActions({
@@ -110,13 +144,5 @@ const processActions = ({
   // initialize the state on next exection.
 
 
-
-  const pointer = instance.exports.alloc();
-  instance.exports.get_state(pointer);
-  const state = read(memory.buffer, pointer);
-
-
-  console.log("State:", state);
-  // fs.writeFileSync('./state.json', JSON.stringify(state));
-
+  saveState({ instance });
 })();

@@ -18,6 +18,13 @@ const vote_token_chain = [
   }
 ]
 
+let pointerPosition = 0;
+
+const nextPointer = () => {
+  pointerPosition = pointerPosition + 1;
+  return pointerPosition;
+}
+
 const createInstance = async () => {
   const path = './target/wasm32-unknown-unknown/release/hello.wasm';
   const buff = fs.readFileSync(path);
@@ -65,21 +72,28 @@ const processActions = ({
   // const listOfActions = fetchActionsFromChain({ smartContractId });
 
   list.forEach((action) => {
-    const pointerStart = instance.exports.alloc();
-
     const pointers = action.args.map((arg, i) => {
-      const pointer = pointerStart + (i * 1024);
+      const pointer = nextPointer();
       write(arg, memory.buffer, pointer);
+      return pointer;
     })
 
-    instance.exports[action.function](...pointers);
-    console.log("Read:", read(memory.buffer, pointerStart))
+    const functionRef = instance.exports[action.function];
+
+    functionRef(...pointers);
   })
 };
 
 (async() => {
   const instance = await createInstance();
   const memory = instance.exports.memory;
+
+  pointerPosition = instance.exports.alloc() - 1024;
+
+  // TODO: Read about memory management in Rust/WASM,
+  // and how to allocate memory for a string of unknown length.
+  // Also, look into conflicting memory management between scrpt and input
+
 
   // await askToGreet('John', { instance, memory });
   // await askToGreet('Allen', { instance, memory });
@@ -96,5 +110,13 @@ const processActions = ({
   // initialize the state on next exection.
 
 
+
+  const pointer = instance.exports.alloc();
+  instance.exports.get_state(pointer);
+  const state = read(memory.buffer, pointer);
+
+
+  console.log("State:", state);
+  // fs.writeFileSync('./state.json', JSON.stringify(state));
 
 })();

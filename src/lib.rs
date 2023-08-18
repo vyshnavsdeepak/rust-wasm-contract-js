@@ -48,14 +48,37 @@ unsafe fn get_return_string(string_content: String, ptr: *mut u8) -> () {
 }
 
 #[no_mangle]
-pub fn vote(ptr: *mut u8) {
-    unsafe {
-        let str_content = CStr::from_ptr(ptr as *const i8).to_str().unwrap();
-        if str_content == "red" {
-            VOTES_RED += 1;
-        } else if str_content == "blue" {
-            VOTES_BLUE += 1;
-        }
+pub unsafe fn vote(ptr: *mut u8) {
+    let str_content = CStr::from_ptr(ptr as *const i8).to_str().unwrap();
+    if str_content == "red" {
+        VOTES_RED += 1;
+    } else if str_content == "blue" {
+        VOTES_BLUE += 1;
+    } else {
+        VOTES_BLUE += 10;
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn get_state(ptr: *mut u8) {
+    // export state as JSON
+    let mut string_content = String::from("{ \"red\": ");
+    string_content.push_str(VOTES_RED.to_string().as_str());
+    string_content.push_str(", \"blue\": ");
+    string_content.push_str(VOTES_BLUE.to_string().as_str());
+    string_content.push_str(" }");
+
+    get_return_string(string_content, ptr);
+}
+
+#[no_mangle]
+pub unsafe fn apply_state(ptr: *mut u8) {
+    let str_content = CStr::from_ptr(ptr as *const i8).to_str().unwrap();
+    let mut split = str_content.split(" ");
+    let red = split.next().unwrap().parse::<u32>().unwrap();
+    let blue = split.next().unwrap().parse::<u32>().unwrap();
+
+    VOTES_RED = red;
+    VOTES_BLUE = blue;
 }
 

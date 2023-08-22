@@ -88,11 +88,18 @@ func (c *ContractExecution) readAtCurrentPointer() string {
 		panic("Contract not initialised")
 	}
 
-	ptr := c.pointerPosition
-	strBytes := c.memory.UnsafeData(c.store)[ptr:]
-	str := string(strBytes)
+	pointer := c.pointerPosition
+	view := c.memory.UnsafeData(c.store)[pointer:]
+	length := 0
+	for _, byte := range view {
+		if byte == 0 {
+			break
+		}
+		length++
+	}
 
-	c.pointerPosition += len(str) + 1
+	str := string(view[:length])
+	c.pointerPosition += length + 1
 	return str
 }
 
